@@ -2,6 +2,8 @@ import numpy as np
 from scipy.io.wavfile import write
 from pydub import AudioSegment
 import time
+from tts_utils import speak
+
 
 
 # 샘플링 레이트 설정 (Hz)
@@ -27,7 +29,7 @@ def audio_callback(indata, frames, time_param, status, threshold, silent_blocks,
             curr_time = time.time()
             if int(curr_time - start_time) >= 10 and int(curr_time - start_time) % 10 == 0:
                 print("주문해주세요.")
-                speak("주문해주세요.")
+                speak("주문주문주문해주세요.")
     else:
         silent_blocks[0] = 0
         # 녹음이 시작되지 않은 경우, 녹음 시작

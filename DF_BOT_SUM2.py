@@ -1,9 +1,11 @@
 import io
 import os
+import time
 import psycopg2
 from google.cloud import speech, texttospeech, dialogflow
 from konlpy.tag import Okt
 from playsound import playsound
+from tts_utils import speak
 
 class Bot:
     def __init__(self, credentials_path, audio_file_path, db_config):
@@ -90,33 +92,68 @@ class Bot:
     
 
     def save_parameters_to_db(self, response):
+
+        # intent_name = response.query_result.intent.display_name
+        # print(f"Detected Intent: {intent_name}")
+
         parameters = response.query_result.parameters
         print("Detected Parameters:")
-        
+
         # 파라미터 수집
         collected_params = {}
         for key, value in parameters.items():
-            print(f"{key}: {value}")
-            collected_params[key] = str(value)
+            if key and value:  # key와 value가 존재하는지 확인
+                print(f"{key}: {value}")
+                collected_params[key] = str(value)
         
-        # null 값이 있는 행을 삭제
-        delete_query = "DELETE FROM hambuger WHERE hambuger_name IS NULL OR num IS NULL"
-        self.cur.execute(delete_query)
-        
+        if not collected_params:
+            print("No valid parameters found to save.")
+            return
+
+        # 테이블 삭제 후 다시 생성
+        self.cur.execute("DROP TABLE IF EXISTS hambuger")
+        self.cur.execute("""
+            CREATE TABLE hambuger (
+                id SERIAL PRIMARY KEY
+            )
+        """)
+
+        # 테이블에 존재하는 기본 컬럼 확인 (id)
+        self.cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='hambuger'")
+        existing_columns = [row[0] for row in self.cur.fetchall()]
+
+        # 새로운 컬럼 생성
+        for key in collected_params.keys():
+            if key not in existing_columns:
+                alter_table_query = f"ALTER TABLE hambuger ADD COLUMN {key} CHARACTER(255)"
+                self.cur.execute(alter_table_query)
+
         # 동적 컬럼 및 값 설정
         columns = ', '.join(collected_params.keys())
         values = ', '.join(['%s'] * len(collected_params))
         insert_query = f"INSERT INTO hambuger ({columns}) VALUES ({values})"
-        
+
         # 컬럼 값 튜플 생성
         insert_values = tuple(collected_params.values())
-        
+
         # 새로운 값을 삽입
         self.cur.execute(insert_query, insert_values)
-        
+
         # 변경 사항 커밋
         self.conn.commit()
+    
+    def check_parameters_to_db(self, response):
+        # 응답에서 인텐트 이름을 가져와서 처리
+        intent_name = response.query_result.intent.display_name
+        print(intent_name)
+        if '매장' in intent_name:
+            time.sleep(5)  # 5초간 딜레이
+            speak("감사합니다. 대기번호를 확인해주세요.")
+            return True
+        return False
 
     def close_db_connection(self):
         self.cur.close()
         self.conn.close()
+
+    

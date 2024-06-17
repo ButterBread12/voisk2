@@ -30,7 +30,10 @@ def run_bot(db_config):  # 사용 예시
     bot.preprocess_text()
     response = bot.detect_intent_texts('my-project-1004-413005', 'fixed_session_id', 'ko')
     bot.save_parameters_to_db(response)  # 파라미터를 데이터베이스에 저장
+    if bot.check_parameters_to_db(response):  # '매장'이 포함된 경우 루프 종료
+        return True
     bot.close_db_connection()  # 데이터베이스 연결 종료
+    return False  
 
 if __name__ == "__main__":
     db_config = {
@@ -43,7 +46,8 @@ if __name__ == "__main__":
 
     while True:
         run_audio_stream()
-        run_bot(db_config)
+        if run_bot(db_config):
+            break
         # 스트림 중단 및 상태 초기화
         stop_stream = [False]
         recording = [False]
@@ -51,3 +55,4 @@ if __name__ == "__main__":
         silent_blocks = [0]
         start_time = time.time()
         time.sleep(1)  # 루프가 너무 빠르게 반복되지 않도록 잠시 대기
+        
